@@ -50,8 +50,13 @@ ROBOTSTXT_OBEY = True
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
+
+SELENIUM_DRIVER_NAME = 'chrome'
+SELENIUM_DRIVER_EXECUTABLE_PATH = None
+SELENIUM_DRIVER_ARGUMENTS=['-headless']
+
 DOWNLOADER_MIDDLEWARES = {
-    "jooble_scraping.middlewares.SeleniumMiddleware": 491, #543
+    "jooble_scraping.middlewares.SeleniumMiddleware": 800
 }
 
 # Enable or disable extensions
