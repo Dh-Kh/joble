@@ -3,11 +3,17 @@
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/items.html
 
-import scrapy
-from scrapy import Field
+from scrapy import Field, Item
 
 
-class JoobleScrapingItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+class JoobleScrapingItem(Item):
+    url = Field()
+    title = Field()
+    region = Field()
+    address = Field()
+    description = Field()
+    images = Field()
+    #date = Field()
+    #price = Field()
+    #count_rooms = Field()
+    #area_estate = Field()
