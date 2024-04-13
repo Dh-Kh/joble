@@ -1,5 +1,4 @@
 import scrapy
-from scrapy.selector import Selector
 from scrapy_selenium import SeleniumRequest
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
@@ -8,6 +7,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from ..items import JoobleScrapingItem
 from random import randint
+from time import sleep
+import re
 
 
 class ScrapingSpider(scrapy.Spider):
@@ -61,40 +62,62 @@ class ScrapingSpider(scrapy.Spider):
                 item["description"] = description.text
             except TimeoutException:
                 item["description"] = "No description"
-            #try:
-            #    button_img = driver.find_element(By.XPATH, '//div[class="photo-buttons legacy-reset"]/button[@class="btn btn-primary photo-btn"]')
-            #    imgs_amount = button_img.text
-            #    action.move_to_element(button_img).click()
-            #    first_selected_img = driver.find_element(By.XPATH, '//li[@class="selected"]/img')
-            #    item["images"] = " ".join(first_selected_img.get_attribute("src"))
-            #    images = driver.find_elements(By.XPATH, '//li[@style="margin-right: 3px; width: 104px;"]/img/')
-            #    for y in range(imgs_amount-1):
-            #        item["images"] = " ".join(images[y].get_attribute("src"))
-            #    exit_click = driver.find_element(By.XPATH, '//div[@class="close icon-close"]')
-            #    action.move_to_element(exit_click).click()
-            #except NoSuchElementException:
-            #    empty_img = driver.find_element(By.XPATH, '//img[@class="noPointer"]')
-            #    item["images"] = empty_img.get_attribute("src")
-            #yield item
+                
+            try:
+                stack = []
+                button_img = driver.find_element(By.XPATH, '//div[@class="primary-photo-container"]')
+                action.move_to_element(button_img).click().perform()
+                images = wait.until(EC.presence_of_all_elements_located((
+                    By.XPATH, '//li[@style="margin-right: 3px; width: 104px;"]/img'
+                )))
+                for y in range(len(images)):
+                    src = images[y].get_attribute("src")
+                    if src:
+                        stack.append(src)
+                    else:
+                        #fix this issue
+                        stack.append("SRC IS NOT LOADED")
+                item["images"] = stack
+                exit_click = driver.find_element(By.XPATH, '//div[@class="close icon-close"]')
+                action.move_to_element(exit_click).click().perform()
+            except NoSuchElementException:
+                empty_img = wait.until(EC.visibility_of_element_located((
+                    By.XPATH, '//img[@class="noPointer"]'
+                    )))
+                item["images"] = [empty_img.get_attribute("src")]
+            try:
+                dates = wait.until(EC.visibility_of_all_elements_located((
+                    By.XPATH, '//table[@class="table table-striped"]//tbody/tr/td[1]'
+                )))
+                stack_date = [date.text for date in dates]
+                #check if it work correct
+                item["date"] = stack_date
+            except TimeoutException:
+                item["date"] = "No data"
+            price = wait.until(EC.presence_of_element_located((
+                By.XPATH, '//div[@class="price-container"]//div[@class="price text-right"]/meta[@itemprop="price"]'
+            )))
+            item["price"] = price.get_attribute("content")
+            #count rooms isn't working properly!
+            count_rooms = wait.until(EC.visibility_of_all_elements_located((
+                By.XPATH, '//div[starts-with(@class, "col-lg-3 col-sm-6")]'
+            )))
+            stack_digit = []
+            for y in range(len(count_rooms)):
+                text = count_rooms[y].text
+                digits = re.findall(r'\d+', text)
+                stack_digit.extend(map(int, digits))
+            item["count_rooms"] = sum(stack_digit)
+            try:
+                area_estate = wait.until(EC.visibility_of_element_located((
+                    By.XPATH, '//div[@class="carac-value"]/span'
+                )))
+                item["area_estate"] = area_estate.text
+            except TimeoutException:
+                item["area_estate"] = "No data"
+            yield item
             
-       
-        #prices = response.xpath("//div[@class='price']//span/text()").getall()
-        #for i in range(len(urls)):
-            #dates = response.xpath("//table[@class='table table-striped']//tbody/tr/td[1]/text()").get()
-            #if len(dates) < 1:
-            #    item["date"] = "No data"
-            #else:
-            #    item["date"] = dates
-            #item["price"] = prices[i]
-            #count_rooms = response.xpath("//div[@class='col-lg-3 col-sm-6 cac']").getall()
-            #item["count_rooms"] = len(count_rooms)
-            #area_estate = response.xpath("//div[@class='carac-value']//span/text()").get()
-            #if len(area_estate) < 1:
-            #    item["area_estate"] = "No data"
-            #else:    
-            #    item["area_estate"] = area_estate
-            
-            #next_element = driver.find_element(By.XPATH, "//li[@class='next']")
-            #driver.execute_script("arguments[0].click();", next_element)
+        #next_element = driver.find_element(By.XPATH, "//li[@class='next']")
+        #driver.execute_script("arguments[0].click();", next_element)
             
             
