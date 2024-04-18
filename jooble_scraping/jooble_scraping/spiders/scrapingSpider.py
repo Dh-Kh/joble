@@ -39,19 +39,13 @@ class ScrapingSpider(scrapy.Spider):
         driver = response.request.meta["driver"]
         wait = WebDriverWait(driver, 3)
         action = ActionChains(driver)
-        #urls = []
-#        driver.get("https://realtylink.org/en/properties~for-rent?view=Thumbnail")
-#        for _ in range(5):
-#            innner_urls = wait.until(EC.presence_of_all_elements_located((
-#                By.XPATH, '//div[@class="thumbnail property-thumbnail-feature legacy-reset"]//a[@class="property-thumbnail-summary-link"]'
-#            )))
-#            for x in range(len(innner_urls)):
-#                urls.append(innner_urls[x].get_attribute("href"))
-#            next_element = driver.find_element(By.XPATH, "//li[@class='next']")
-#            next_element.click()
-#            wait.until(EC.staleness_of(innner_urls[0]))
-            
-        urls = response.xpath('//div[@class="thumbnail property-thumbnail-feature legacy-reset"]//a[@class="property-thumbnail-summary-link"]/@href').getall()
+        urls = []
+        for _ in range(5):
+            innner_urls = response.xpath('//div[@class="thumbnail property-thumbnail-feature legacy-reset"]//a[@class="property-thumbnail-summary-link"]/@href').getall() 
+            for url in innner_urls:
+                urls.append(url)
+            next_element = driver.find_element(By.XPATH, "//li[@class='next']")
+            next_element.click()  
         for i in range(len(urls)):
             item["url"] = urls[i]
             url_to_get = "https://realtylink.org"+urls[i]
