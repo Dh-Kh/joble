@@ -4,11 +4,11 @@ from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import (TimeoutException, NoSuchElementException)
 from ..items import JoobleScrapingItem
 from random import randint
+from selenium.webdriver.common.keys import Keys
 from time import sleep
-import re
 
 
 class ScrapingSpider(scrapy.Spider):
@@ -38,13 +38,26 @@ class ScrapingSpider(scrapy.Spider):
         driver = response.request.meta["driver"]
         wait = WebDriverWait(driver, 3)
         action = ActionChains(driver)
-        #for _ in range(5):
-        #range for urls with pagination made separently
+        #urls = []
+#        driver.get("https://realtylink.org/en/properties~for-rent?view=Thumbnail")
+#        for _ in range(5):
+#            innner_urls = wait.until(EC.presence_of_all_elements_located((
+#                By.XPATH, '//div[@class="thumbnail property-thumbnail-feature legacy-reset"]//a[@class="property-thumbnail-summary-link"]'
+#            )))
+#            for x in range(len(innner_urls)):
+#                urls.append(innner_urls[x].get_attribute("href"))
+#            next_element = driver.find_element(By.XPATH, "//li[@class='next']")
+#            next_element.click()
+#            wait.until(EC.staleness_of(innner_urls[0]))
+            
         urls = response.xpath('//div[@class="thumbnail property-thumbnail-feature legacy-reset"]//a[@class="property-thumbnail-summary-link"]/@href').getall()
         for i in range(len(urls)):
+            if i == 1:
+                break
             item["url"] = urls[i]
             url_to_get = "https://realtylink.org"+urls[i]
             driver.get(url_to_get)
+            driver.maximize_window()
             title = wait.until(EC.visibility_of_element_located((
                 By.XPATH, '//div[@class="col text-left pl-0"]//h1/span[@data-id="PageTitle"]'
             )))
@@ -70,13 +83,11 @@ class ScrapingSpider(scrapy.Spider):
                 images = wait.until(EC.presence_of_all_elements_located((
                     By.XPATH, '//li[@style="margin-right: 3px; width: 104px;"]/img'
                 )))
-                for y in range(len(images)):
-                    src = images[y].get_attribute("src")
-                    if src:
-                        stack.append(src)
-                    else:
-                        #fix this issue
-                        stack.append("SRC IS NOT LOADED")
+                for y in range(1, len(images)):
+                    action.move_to_element(images[y]).click().perform()
+                    driver.implicitly_wait(3)
+                    stack.append(images[y].get_attribute('src'))
+                    #action.send_keys(Keys.END)
                 item["images"] = stack
                 exit_click = driver.find_element(By.XPATH, '//div[@class="close icon-close"]')
                 action.move_to_element(exit_click).click().perform()
@@ -90,7 +101,6 @@ class ScrapingSpider(scrapy.Spider):
                     By.XPATH, '//table[@class="table table-striped"]//tbody/tr/td[1]'
                 )))
                 stack_date = [date.text for date in dates]
-                #check if it work correct
                 item["date"] = stack_date
             except TimeoutException:
                 item["date"] = "No data"
@@ -102,12 +112,7 @@ class ScrapingSpider(scrapy.Spider):
             count_rooms = wait.until(EC.visibility_of_all_elements_located((
                 By.XPATH, '//div[starts-with(@class, "col-lg-3 col-sm-6")]'
             )))
-            stack_digit = []
-            for y in range(len(count_rooms)):
-                text = count_rooms[y].text
-                digits = re.findall(r'\d+', text)
-                stack_digit.extend(map(int, digits))
-            item["count_rooms"] = sum(stack_digit)
+            item["count_rooms"] = sum(int(char) for room in count_rooms for char in room.text if char.isdigit())
             try:
                 area_estate = wait.until(EC.visibility_of_element_located((
                     By.XPATH, '//div[@class="carac-value"]/span'
@@ -117,7 +122,6 @@ class ScrapingSpider(scrapy.Spider):
                 item["area_estate"] = "No data"
             yield item
             
-        #next_element = driver.find_element(By.XPATH, "//li[@class='next']")
-        #driver.execute_script("arguments[0].click();", next_element)
+            
             
             
