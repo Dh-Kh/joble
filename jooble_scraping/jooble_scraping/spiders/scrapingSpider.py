@@ -4,11 +4,12 @@ from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import (TimeoutException, NoSuchElementException)
 from ..items import JoobleScrapingItem
 from random import randint
-from selenium.webdriver.common.keys import Keys
 from time import sleep
+import re
 
 
 class ScrapingSpider(scrapy.Spider):
@@ -52,8 +53,6 @@ class ScrapingSpider(scrapy.Spider):
             
         urls = response.xpath('//div[@class="thumbnail property-thumbnail-feature legacy-reset"]//a[@class="property-thumbnail-summary-link"]/@href').getall()
         for i in range(len(urls)):
-            if i == 1:
-                break
             item["url"] = urls[i]
             url_to_get = "https://realtylink.org"+urls[i]
             driver.get(url_to_get)
@@ -74,8 +73,7 @@ class ScrapingSpider(scrapy.Spider):
                 )))
                 item["description"] = description.text
             except TimeoutException:
-                item["description"] = "No description"
-                
+                item["description"] = "No description"  
             try:
                 stack = []
                 button_img = driver.find_element(By.XPATH, '//div[@class="primary-photo-container"]')
@@ -83,11 +81,11 @@ class ScrapingSpider(scrapy.Spider):
                 images = wait.until(EC.presence_of_all_elements_located((
                     By.XPATH, '//li[@style="margin-right: 3px; width: 104px;"]/img'
                 )))
-                for y in range(1, len(images)):
+                for y in range(len(images)):
                     action.move_to_element(images[y]).click().perform()
-                    driver.implicitly_wait(3)
-                    stack.append(images[y].get_attribute('src'))
-                    #action.send_keys(Keys.END)
+                    driver.implicitly_wait(1)
+                    main_img = driver.find_element(By.XPATH, '//img[@id="fullImg"]')
+                    stack.append(main_img.get_attribute('src'))
                 item["images"] = stack
                 exit_click = driver.find_element(By.XPATH, '//div[@class="close icon-close"]')
                 action.move_to_element(exit_click).click().perform()
@@ -108,11 +106,15 @@ class ScrapingSpider(scrapy.Spider):
                 By.XPATH, '//div[@class="price-container"]//div[@class="price text-right"]/meta[@itemprop="price"]'
             )))
             item["price"] = price.get_attribute("content")
-            #count rooms isn't working properly!
-            count_rooms = wait.until(EC.visibility_of_all_elements_located((
-                By.XPATH, '//div[starts-with(@class, "col-lg-3 col-sm-6")]'
-            )))
-            item["count_rooms"] = sum(int(char) for room in count_rooms for char in room.text if char.isdigit())
+            count_rooms = wait.until(EC.visibility_of_all_elements_located(
+                (By.XPATH, '//div[@class="row teaser"]//div[starts-with(@class, "col-lg-3 col-sm-6") and not(contains(@class, "lifestyle"))]')
+            ))
+            count_rooms_text = [room.text for room in count_rooms]
+            numeric_values = []
+            for text in count_rooms_text:
+                numeric_values.extend(re.findall(r'\b\d+\b', text))
+            count_rooms = sum(map(int, numeric_values))
+            item["count_rooms"] = count_rooms
             try:
                 area_estate = wait.until(EC.visibility_of_element_located((
                     By.XPATH, '//div[@class="carac-value"]/span'
